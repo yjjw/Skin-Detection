@@ -2,8 +2,10 @@
 
 Skin Detection Classifier using the Naïve Bayes classifier (Bayes Decision Rule)
 
-### Training Images
-The training image is:
-![Image of family](https://github.com/yjjw/Skin-Detection/blob/master/family.jpg)
-The ground truth of training image is:
-![ground truth of training image](https://github.com/yjjw/Skin-Detection/blob/master/family.png)
+### Training image
+The training image and its ground truth are family.jpg and family.png
+
+### Testing result
+![Image of comparisons](https://github.com/yjjw/Skin-Detection/blob/master/comparisons.png)
+From left to right, there is original image, ground-truth image and the classificaion result respectively
+
