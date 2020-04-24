@@ -1,6 +1,6 @@
 from PIL import Image
 import math
-
+import numpy as np
 # get N_skin and N_background for the training image
 # map pixel indices to either 0(background) or 1(skin)
 dictionary = {}
@@ -8,6 +8,7 @@ N_skin = 0
 N_background = 0
 im = Image.open('family.png', 'r')  # read ground-truth
 pix_value = list(im.getdata())  # extract (R,G,B,A) values to a list
+
 for idx, pixel in enumerate(pix_value):  # because white(255,255,255) and black(0,0,0)
     if pixel[0] == 255:
         N_skin += 1
@@ -17,6 +18,10 @@ for idx, pixel in enumerate(pix_value):  # because white(255,255,255) and black(
         dictionary[idx] = 0
 print('N_skin for training image is', N_skin)
 print('N_background for training image is', N_background)
+Pb = N_background / (N_background + N_skin)
+Ps = N_skin / (N_background + N_skin)
+print('the probability of being background pixels is', Pb)
+print('the probability of being skin pixels is', Ps)
 # convert pixel values to rg Chroma Space
 r_list_background = []
 g_list_background = []
@@ -28,7 +33,7 @@ for idx, pix in enumerate(pix_value):
     RGB_sum = pix[0] + pix[1] + pix[2]
     if dictionary[idx] == 0:  # belongs to background
         if RGB_sum == 0:
-            R = G = 0
+            R = G = 1/3
         else:
             R = pix[0] / RGB_sum  # rk = Rk / (Rk+Gk+Bk)
             G = pix[1] / RGB_sum  # gk = Gk / (Rk+Gk+Bk)
@@ -36,7 +41,7 @@ for idx, pix in enumerate(pix_value):
         g_list_background.append(G)
     elif dictionary[idx] == 1:  # belongs to skin
         if RGB_sum == 0:
-            R = G = 0
+            R = G = 1/3
         else:
             R = pix[0] / RGB_sum  # rk = Rk / (Rk+Gk+Bk)
             G = pix[1] / RGB_sum  # gk = Gk / (Rk+Gk+Bk)
@@ -50,27 +55,35 @@ print('rg Chroma Space processed')
 mean_0r = sum(r_list_background) / N_background
 diff_0r = [(ri - mean_0r) ** 2 for ri in r_list_background]
 variance_0r = sum(diff_0r) / N_background
+print('mean for background r is', mean_0r)
+print('variance for background r is', variance_0r)
 
 mean_0g = sum(g_list_background) / N_background
 diff_0g = [(gi - mean_0g) ** 2 for gi in g_list_background]
 variance_0g = sum(diff_0g) / N_background
+print('mean for background g is', mean_0g)
+print('variance for background g is', variance_0g)
 
 
 mean_1r = sum(r_list_skin) / N_skin
 diff_1r = [(ri - mean_1r) ** 2 for ri in r_list_skin]
 variance_1r = sum(diff_1r) / N_skin
+print('mean for skin r is', mean_1r)
+print('variance for skin r is', variance_1r)
 
 mean_1g = sum(g_list_skin) / N_skin
 diff_1g = [(gi - mean_1g) ** 2 for gi in g_list_skin]
 variance_1g = sum(diff_1g) / N_skin
+print('mean for skin g is', mean_1g)
+print('variance for skin g is', variance_1g)
 print('train parameters done!')
 
 # Testing Stage
-# get P(background) and P(skin) for the test image
+# read ground-truth image
+img_truth = Image.open('portrait.png', 'r')
 N_skin = 0
 N_background = 0
-img = Image.open('portrait.png', 'r')  # read ground-truth image
-pix_value = list(img.getdata())  # extract (R,G,B,A) values to a list
+pix_value = list(img_truth.getdata())  # extract (R,G,B,A) values to a list
 for pixel in pix_value:  # because white(255,255,255) and black(0,0,0)
     if pixel[0] == 255:
         N_skin += 1
@@ -78,10 +91,6 @@ for pixel in pix_value:  # because white(255,255,255) and black(0,0,0)
         N_background += 1
 print('N_skin for test image is', N_skin)
 print('N_background for test image is', N_background)
-Pb = N_background / (N_background + N_skin)
-Ps = N_skin / (N_background + N_skin)
-print('the probability of being background pixels is', Pb)
-print('the probability of being skin pixels is', Ps)
 
 
 # calculate the likelihood of data x under Gaussian Distribution
@@ -103,7 +112,7 @@ def create_image():
             r, g, b = image.getpixel((i, j))
             rgb_sum = r + g + b
             if rgb_sum == 0:
-                rk = gk = 0
+                rk = gk = 1/3
             else:
                 rk = r / rgb_sum
                 gk = g / rgb_sum
@@ -123,8 +132,8 @@ def create_image():
 # false positive rate, as well as false negative rate
 def get_rates():
     true_positive = true_negative = false_positive = false_negative = 0
-    wid, hei = img.size  # ground truth image
-    pixel_truth = img.load()
+    wid, hei = img_truth.size  # ground truth image
+    pixel_truth = img_truth.load()
     for i in range(wid):
         for j in range(hei):
             if pixel_truth[i, j][0] == 255 and pixel_test[i, j][0] == 255:
@@ -148,6 +157,8 @@ def get_rates():
 # append original image, ground-truth image and binary mask image for comparisons
 def append_image():
     images = [Image.open(x) for x in ['portrait.jpg', 'portrait.png', 'binary_mask.png']]
+    print(type(images))
+    print(type(images[0]))
     widths, heights = zip(*(i.size for i in images))
     total_width = sum(widths)
     max_height = max(heights)
